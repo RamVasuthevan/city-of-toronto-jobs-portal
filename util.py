@@ -38,3 +38,11 @@ def download_search_pages_and_parse_jobs_write_to_directory_for_all_portals() ->
         f.write(json.dumps(jobs_by_portal, cls=CustomJSONEncoder, indent=4))
     
     return jobs_by_portal
+
+def download_job_pages_for_all_portals() -> dict[str, dict[str, str]]:
+    import main
+    jobs_by_portal = main.read_jobs_from_json(os.path.join(main.DOWNLOAD_DIR, 'jobs_by_portal.json'))
+
+    for portal, jobs in jobs_by_portal.items():
+        job_pages = main.download_job_pages_for_jobs(jobs)
+        main.write_job_pages_for_portal_to_directory(job_pages, portal)

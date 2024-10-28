@@ -18,6 +18,8 @@ Extract helper functions which add clutter, whose purposes are obvious and do no
 
 Comments which are written must be maintained.
 
+Code should fail loudly.
+
 Functions in main.py should be order by operation
 1. Download
 2. Write

@@ -21,3 +21,8 @@ Todo:
 - [ ] Add tests
 - [ ] Add logging
 - [ ] Git scraping job posts
+
+
+Job Post parsing is a mess. I think the correct approach is a test driven approach to parsing the job posts, get all of the date for job post 1, then see if that code work for job post 2, etc.
+
+Main module is too big we need to break it up.

@@ -234,11 +234,63 @@ def read_jobs_from_json(filepath: str) -> dict[str, list[Job]]:
     
     return jobs_by_portal
 
-if __name__ == "__main__":
-    #jobs_by_portal = download_search_pages_and_parse_jobs_write_to_directory_for_all_portals()
+def read_job_pages_from_directory(portal: str) -> dict[str, HTMLString]:
+    job_dir = JOB_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    job_pages = {}
+    for job_id in os.listdir(job_dir):
+        file_path = os.path.join(job_dir, job_id)
+        with open(file_path, 'r', encoding='utf-8') as f:
+            job_pages[job_id] = HTMLString(f.read())
+    return job_pages
 
-    jobs_by_portal = read_jobs_from_json(os.path.join(DOWNLOAD_DIR, 'jobs_by_portal.json'))
-    
-    jobs = jobs_by_portal['jobsatcity'][:3]
-    job_pages = download_job_pages_for_jobs(jobs)
-    write_job_pages_for_portal_to_directory(job_pages, 'jobsatcity')
+
+def parse_job_details_from_job_page(page: HTMLString) -> dict[str, str]:
+   """
+   Extract basic job details from before Job Summary section.
+   Raises ValueError if posting has ended or required sections missing.
+   """
+   soup = BeautifulSoup(page, 'html.parser')
+   
+   # Check if job posting has ended
+   if "Sorry, this job posting has ended" in soup.get_text():
+       raise ValueError("Job posting has ended")
+   
+   # Find jobdescription section
+   jobdesc = soup.find('span', class_='jobdescription')
+   if not jobdesc:
+       raise ValueError("Could not find jobdescription section")
+       
+   # Get all list items before "Job Summary" or "Major Responsibilities"
+   details = {}
+   for li in jobdesc.find_all('li'):
+       text = li.get_text(strip=True)
+       
+       # Stop if we hit Job Summary section
+       if "Job Summary" in text or "Major Responsibilities" in text:
+           break
+           
+       if ':' in text:
+           key, value = [x.strip() for x in text.split(':', 1)]
+           details[key.lower()] = value
+           
+   return details
+
+if __name__ == "__main__":
+   details_by_portal = {}
+   for portal in JOB_PORTAL_SLUGS:
+       job_pages = read_job_pages_from_directory(portal)
+       print(f"Read {len(job_pages)} job pages from {portal}")
+       
+       details_by_portal[portal] = {}
+       for job_id, page in job_pages.items():
+           try:
+               details_by_portal[portal][job_id] = parse_job_details_from_job_page(page)
+               print(f"Parsed job {job_id}")
+           except ValueError as e:
+               if "Job posting has ended" in str(e):
+                   print(f"Skipping job {job_id} - posting has ended")
+               else:
+                   print(f"Error parsing job {job_id}: {e}")
+           
+   with open(os.path.join(DOWNLOAD_DIR, 'parsed_job_details.json'), 'w', encoding='utf-8') as f:
+       json.dump(details_by_portal, f, cls=CustomJSONEncoder, indent=2)
