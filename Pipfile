@@ -8,5 +8,11 @@ requests = "*"
 beautifulsoup4 = "*"
 sqlmodel = "*"
 
+[dev-packages]
+isort = "*"
+black = "*"
+flake8-pyproject = "*"
+autoflake = "*"
+
 [requires]
 python_version = "3.12"
