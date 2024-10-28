@@ -40,17 +40,11 @@ SEARCH_PAGE_DOWNLOAD_DIR = os.path.join(DOWNLOAD_DIR, 'search')
 OUTPUT_PATH_TEMPLATE = os.path.join(SEARCH_PAGE_DOWNLOAD_DIR, '{portal}')
 PARSED_JOBS_FILE = os.path.join(DOWNLOAD_DIR, 'parsed_jobs.json')
 
-def download_search_page(url: str, page_number: int) -> str | None:
-    """
-    Downloads a single page of Toronto jobs search results
-    
-    Args:
-        url: The base URL to download from
-        page_number: Page number (used to calculate startrow)
-        
-    Returns:
-        str | None: HTML content of the page or None if error occurs
-    """
+class DownloadError(Exception):
+    """Raised when a page download fails"""
+    pass
+
+def download_search_page(url: str, page_number: int) -> str:
     params = {
         'q': '',  # Search query
         'startrow': page_number * ITEMS_PER_PAGE,  # Pagination offset
@@ -62,10 +56,9 @@ def download_search_page(url: str, page_number: int) -> str | None:
     try:
         response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
-        return response.texti
+        return response.text
     except requests.RequestException as e:
-        print(f"Error downloading page {page_number}: {e}")
-        return None
+        raise DownloadError(f"Failed to download page {page_number}: {str(e)}")
 
 def download_all_search_pages_for_portal(portal: str) -> None:
     """
@@ -163,7 +156,7 @@ def parse_all_jobs_from_portal(portal: str) -> list[Job]:
     
     return jobs
 
-def download_and_parse_for_all_portals():
+def download_and_parse_form_all_portals():
     """
     Download and parse jobs from all portals, saving results to a JSON file
     """
@@ -189,4 +182,4 @@ def download_and_parse_for_all_portals():
     print(f"Saved parsed results to {PARSED_JOBS_FILE}")
 
 if __name__ == "__main__":
-    download_and_parse_for_all_portals()
+    download_and_parse_form_all_portals()
