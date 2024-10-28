@@ -56,6 +56,20 @@ def download_search_page(url: str, page_number: int) -> HTMLString:
     except requests.RequestException as e:
         raise DownloadError(f"Failed to download page {page_number}: {str(e)}")
 
+def download_job_page(url: str) -> HTMLString:
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        
+        content_type = response.headers.get('Content-Type', '')
+        if 'text/html' not in content_type:
+            raise DownloadError(f"Expected HTML content but received '{content_type}' for URL: {url}")
+        
+        return HTMLString(response.text)
+        
+    except requests.RequestException as e:
+        raise DownloadError(f"Failed to download job page {url}: {str(e)}")
+    
 def download_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
     url = SEARCH_PAGE_URL_TEMPLATE.format(portal=portal)
     all_pages = []
@@ -78,32 +92,19 @@ def download_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
     
     return all_pages
 
-def download_job_page(url: str) -> HTMLString:
-    try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()
-        
-        content_type = response.headers.get('Content-Type', '')
-        if 'text/html' not in content_type:
-            raise DownloadError(f"Expected HTML content but received '{content_type}' for URL: {url}")
-        
-        return HTMLString(response.text)
-        
-    except requests.RequestException as e:
-        raise DownloadError(f"Failed to download job page {url}: {str(e)}")
-    
-def write_job_page_to_directory(content: HTMLString, portal: str, job_id: str) -> None:
-    output_dir = JOB_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
-    os.makedirs(output_dir, exist_ok=True)
-    
-    output_file = os.path.join(output_dir, f"{job_id}.html")
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(content)
-
-def write_search_pages_to_directory(pages: list[HTMLString], portal: str) -> None:
+def write_search_pages_for_portal_to_directory(pages: list[HTMLString], portal: str) -> None:
     output_dir = SEARCH_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
     os.makedirs(output_dir, exist_ok=True)
     
+    for page_number, content in enumerate(pages):
+        output_file = os.path.join(output_dir, f"{page_number}.html")
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+def write_job_pages_for_portal_to_directory(pages: list[HTMLString], portal: str) -> None:
+    output_dir = JOB_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    os.makedirs(output_dir, exist_ok=True)
+
     for page_number, content in enumerate(pages):
         output_file = os.path.join(output_dir, f"{page_number}.html")
         with open(output_file, 'w', encoding='utf-8') as f:
@@ -184,7 +185,7 @@ def download_all_search_pages_for_all_portals() -> dict[str, list[HTMLString]]:
 
 def write_all_search_pages_to_directory(pages_by_portal: dict[str, list[HTMLString]]) -> None:
     for portal, pages in pages_by_portal.items():
-        write_search_pages_to_directory(pages, portal)
+        write_search_pages_for_portal_to_directory(pages, portal)
 
 def read_all_search_pages_from_directory() -> dict[str, list[HTMLString]]:
     pages_by_portal = {}
@@ -206,26 +207,18 @@ def parse_jobs_from_all_portals(pages_by_portal: dict[str, list[HTMLString]]) ->
 
 
 def main():
-    #pages_by_portal = download_all_search_pages_for_all_portals()
-    #write_all_search_pages_to_directory(pages_by_portal)
+    pages_by_portal = download_all_search_pages_for_all_portals()
+    write_all_search_pages_to_directory(pages_by_portal)
 
     pages_by_portal = read_all_search_pages_from_directory()
     jobs_by_portal = parse_jobs_from_all_portals(pages_by_portal)
-    
-    test_job = jobs_by_portal['jobsatcity'][0]
-    test_job_url = JOB_PAGE_URL_TEMPLATE.format(relative_url=test_job.relative_url)
-    print(f"Downloading job page for {test_job_url}")
-    test_job_page = download_job_page(test_job_url)
-    write_job_page_to_directory(test_job_page, test_job.portal, test_job.job_id)
+
+    test_jobs = jobs_by_portal['jobsatcity'][:3]
+    test_job_urls = [JOB_PAGE_URL_TEMPLATE.format(relative_url=job.relative_url) for job in test_jobs]
+    test_job_pages = [download_job_page(url) for url in test_job_urls]
+    write_job_pages_for_portal_to_directory(test_job_pages, 'jobsatcity')
 
 
 if __name__ == "__main__":
-    from util import get_all_functions_in_module
-    import sys
-    current_module = sys.modules[__name__]
-    
-    functions = get_all_functions_in_module(current_module)
-    for function in sorted(functions):
-        if function != 'main':
-            print(function)
+    main()
 
