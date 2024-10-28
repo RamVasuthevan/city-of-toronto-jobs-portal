@@ -70,7 +70,7 @@ def download_job_page(url: str) -> HTMLString:
     except requests.RequestException as e:
         raise DownloadError(f"Failed to download job page {url}: {str(e)}")
     
-def download_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
+def download_search_pages_for_portal(portal: str) -> list[HTMLString]:
     url = SEARCH_PAGE_URL_TEMPLATE.format(portal=portal)
     all_pages = []
     
@@ -92,11 +92,11 @@ def download_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
     
     return all_pages
 
-def download_all_search_pages_for_all_portals() -> dict[str, list[HTMLString]]:    
+def download_search_pages_for_all_portals() -> dict[str, list[HTMLString]]:    
     pages_by_portal = {}
     for portal in JOB_PORTAL_SLUGS:
         print(f"Starting download for {portal}")
-        pages = download_all_search_pages_for_portal(portal)
+        pages = download_search_pages_for_portal(portal)
         pages_by_portal[portal] = pages
         sleep(SLEEP_BETWEEN_PORTALS)
     
@@ -120,7 +120,7 @@ def write_job_pages_for_portal_to_directory(pages: list[HTMLString], portal: str
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(content)
 
-def write_all_search_pages_for_all_portals_to_directory(pages_by_portal: dict[str, list[HTMLString]]) -> None:
+def write_search_pages_for_portals_to_directory(pages_by_portal: dict[str, list[HTMLString]]) -> None:
     for portal, pages in pages_by_portal.items():
         write_search_pages_for_portal_to_directory(pages, portal)
 
@@ -134,7 +134,7 @@ def read_search_page_from_directory(portal: str, page_number: int) -> HTMLString
     except FileNotFoundError:
         raise DownloadError(f"Page {page_number} not found for {portal}")
 
-def read_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
+def read_search_pages_for_portal(portal: str) -> list[HTMLString]:
     search_dir = SEARCH_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
     if not os.path.exists(search_dir):
         raise FileNotFoundError(f"No downloaded files found for {portal} at {search_dir}")
@@ -152,10 +152,10 @@ def read_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
     
     return pages
 
-def read_all_search_pages_for_all_portals_from_directory() -> dict[str, list[HTMLString]]:
+def read_search_pages_for_all_portals_from_directory() -> dict[str, list[HTMLString]]:
     pages_by_portal = {}
     for portal in JOB_PORTAL_SLUGS:
-        pages = read_all_search_pages_for_portal(portal)
+        pages = read_search_pages_for_portal(portal)
         pages_by_portal[portal] = pages
     
     return pages_by_portal
@@ -185,7 +185,7 @@ def parse_jobs_from_search_page(page: HTMLString, portal: str) -> list[Job]:
     
     return jobs
 
-def parse_all_jobs_from_portal(pages: list[HTMLString], portal: str) -> list[Job]:
+def parse_jobs_from_search_pages(pages: list[HTMLString], portal: str) -> list[Job]:
     jobs = []
     
     for page_number, content in enumerate(pages):
@@ -195,11 +195,11 @@ def parse_all_jobs_from_portal(pages: list[HTMLString], portal: str) -> list[Job
     
     return jobs
 
-def parse_jobs_from_all_portals(pages_by_portal: dict[str, list[HTMLString]]) -> dict[str, list[Job]]:
+def parse_jobs_from_search_pages_for_portals(pages_by_portal: dict[str, list[HTMLString]]) -> dict[str, list[Job]]:
     jobs_by_portal = {}
     for portal, pages in pages_by_portal.items():
         print(f"Parsing jobs for {portal}")
-        jobs = parse_all_jobs_from_portal(pages, portal)
+        jobs = parse_jobs_from_search_pages(pages, portal)
         jobs_by_portal[portal] = jobs
         print(f"Found {len(jobs)} jobs for {portal}")
     
@@ -207,11 +207,11 @@ def parse_jobs_from_all_portals(pages_by_portal: dict[str, list[HTMLString]]) ->
 
 
 def main():
-    pages_by_portal = download_all_search_pages_for_all_portals()
-    write_all_search_pages_for_all_portals_to_directory(pages_by_portal)
+    pages_by_portal = download_search_pages_for_all_portals()
+    write_search_pages_for_portals_to_directory(pages_by_portal)
 
-    pages_by_portal = read_all_search_pages_for_all_portals_from_directory()
-    jobs_by_portal = parse_jobs_from_all_portals(pages_by_portal)
+    pages_by_portal = read_search_pages_for_all_portals_from_directory()
+    jobs_by_portal = parse_jobs_from_search_pages_for_portals(pages_by_portal)
 
     test_jobs = jobs_by_portal['jobsatcity'][:3]
     test_job_urls = [JOB_PAGE_URL_TEMPLATE.format(relative_url=job.relative_url) for job in test_jobs]

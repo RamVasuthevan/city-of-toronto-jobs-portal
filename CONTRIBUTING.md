@@ -32,3 +32,11 @@ Within page they should be ordered by scope
 1. Single Page
 2. All Pages for Portal
 3. All Pages for All Portals
+
+Using the word in a function name implies that we are using an out of scope constant
+
+for example:
+download_search_pages_for_all_portals get all portals from JOB_PORTAL_SLUGS
+while write_search_pages_for_portals_to_directory get portals from the the keys for argument pages_by_portal
+
+How should use for vs from
