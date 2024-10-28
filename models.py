@@ -1,11 +1,6 @@
-import json
-import os
-import time
 from datetime import date, datetime
-from time import sleep
-from typing import NewType, Optional, Union
+from typing import Optional
 
-import requests
 from bs4 import BeautifulSoup
 from pydantic import field_serializer, field_validator
 from sqlmodel import Field, SQLModel

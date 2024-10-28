@@ -1,14 +1,11 @@
 import json
 import os
 import time
-from datetime import date, datetime
 from time import sleep
-from typing import NewType, Optional, Union
+from typing import NewType
 
 import requests
 from bs4 import BeautifulSoup
-from pydantic import field_serializer, field_validator
-from sqlmodel import Field, SQLModel
 
 from models import Job
 from util import CustomJSONEncoder
@@ -180,8 +177,8 @@ def parse_jobs_from_all_portals(pages_by_portal: dict[str, list[HTMLString]]) ->
     return jobs_by_portal
 
 if __name__ == "__main__":
-    #pages_by_portal = download_all_search_pages_for_all_portals()
-    #write_all_search_pages_to_directory(pages_by_portal)
+    pages_by_portal = download_all_search_pages_for_all_portals()
+    write_all_search_pages_to_directory(pages_by_portal)
 
     pages_by_portal = read_all_search_pages_from_directory()
     jobs_by_portal = parse_jobs_from_all_portals(pages_by_portal)
