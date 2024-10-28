@@ -13,5 +13,3 @@ extend-ignore = ["E203", "W503"]
 [tool.autoflake]
 remove-all-unused-imports = true
 remove-unused-variables = true
-in-place = true
-recursive = true
