@@ -8,6 +8,7 @@ import json
 from typing import Optional, Union
 from sqlmodel import SQLModel, Field
 from pydantic import field_validator, field_serializer
+from typing import NewType
 
 from util import DateEncoder
 
@@ -44,19 +45,27 @@ class DownloadError(Exception):
     """Raised when a page download fails"""
     pass
 
-def download_search_page(url: str, page_number: int) -> str:
+HTMLString = NewType('HTMLString', str)
+
+def download_search_page(url: str, page_number: int) -> HTMLString:
     params = {
         'q': '',  # Search query
         'startrow': page_number * ITEMS_PER_PAGE,  # Pagination offset
         '_': int(time.time() * 1000),  # Cache busting timestamp
-        #'sortColumn': 'referencedate',  # Sort by reference/posting date
+        # 'sortColumn': 'referencedate',  # Sort by reference/posting date
         # 'sortDirection': 'desc',        # Sort direction (ascending/descending)
     }
 
     try:
         response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
-        return response.text
+        
+        content_type = response.headers.get('Content-Type', '')
+        if 'text/html' in content_type:
+            return HTMLString(response.text)
+        else:
+            raise DownloadError(f"Expected HTML content but received '{content_type}' on page {page_number}")
+    
     except requests.RequestException as e:
         raise DownloadError(f"Failed to download page {page_number}: {str(e)}")
 
