@@ -11,16 +11,22 @@ from models import Job
 from util import CustomJSONEncoder
 
 JOB_PORTAL_SLUGS = ['jobsatcity', 'recreation']
-BASE_URL_TEMPLATE = "https://jobs.toronto.ca/{portal}/tile-search-results/"
-ITEMS_PER_PAGE = 25
+SEARCH_PAGE_URL_TEMPLATE = "https://jobs.toronto.ca/{portal}/tile-search-results/"
+ITEMS_PER_SEARCH_PAGE = 25
+
 SLEEP_BETWEEN_REQUESTS = 2
 SLEEP_BETWEEN_PORTALS = SLEEP_BETWEEN_REQUESTS
 END_OF_JOBS_MARKER = "<!DOCTYPE HTML>"
 
 DOWNLOAD_DIR = 'downloaded'
 SEARCH_PAGE_DOWNLOAD_DIR = os.path.join(DOWNLOAD_DIR, 'search')
-OUTPUT_PATH_TEMPLATE = os.path.join(SEARCH_PAGE_DOWNLOAD_DIR, '{portal}')
+SEARCH_PAGE_OUTPUT_PATH_TEMPLATE = os.path.join(SEARCH_PAGE_DOWNLOAD_DIR, '{portal}')
+JOB_PAGE_DOWNLOAD_DIR = os.path.join(DOWNLOAD_DIR, 'job')
+JOB_PAGE_OUTPUT_PATH_TEMPLATE = os.path.join(JOB_PAGE_DOWNLOAD_DIR, '{portal}')
+
 PARSED_JOBS_FILE = os.path.join(DOWNLOAD_DIR, 'parsed_jobs.json')
+
+JOB_PAGE_URL_TEMPLATE = "https://jobs.toronto.ca/{relative_url}"
 
 class DownloadError(Exception):
     """Raised when a page download fails"""
@@ -31,7 +37,7 @@ HTMLString = NewType('HTMLString', str)
 def download_search_page(url: str, page_number: int) -> HTMLString:
     params = {
         'q': '',  # Search query
-        'startrow': page_number * ITEMS_PER_PAGE,  # Pagination offset
+        'startrow': page_number * ITEMS_PER_SEARCH_PAGE,  # Pagination offset
         '_': int(time.time() * 1000),  # Cache busting timestamp
         # 'sortColumn': 'referencedate',  # Sort by reference/posting date
         # 'sortDirection': 'desc',        # Sort direction (ascending/descending)
@@ -51,7 +57,7 @@ def download_search_page(url: str, page_number: int) -> HTMLString:
         raise DownloadError(f"Failed to download page {page_number}: {str(e)}")
 
 def download_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
-    url = BASE_URL_TEMPLATE.format(portal=portal)
+    url = SEARCH_PAGE_URL_TEMPLATE.format(portal=portal)
     all_pages = []
     
     page_number = 0
@@ -72,8 +78,30 @@ def download_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
     
     return all_pages
 
+def download_job_page(url: str) -> HTMLString:
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        
+        content_type = response.headers.get('Content-Type', '')
+        if 'text/html' not in content_type:
+            raise DownloadError(f"Expected HTML content but received '{content_type}' for URL: {url}")
+        
+        return HTMLString(response.text)
+        
+    except requests.RequestException as e:
+        raise DownloadError(f"Failed to download job page {url}: {str(e)}")
+    
+def write_job_page_to_directory(content: HTMLString, portal: str, job_id: str) -> None:
+    output_dir = JOB_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    output_file = os.path.join(output_dir, f"{job_id}.html")
+    with open(output_file, 'w', encoding='utf-8') as f:
+        f.write(content)
+
 def write_search_pages_to_directory(pages: list[HTMLString], portal: str) -> None:
-    output_dir = OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    output_dir = SEARCH_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
     os.makedirs(output_dir, exist_ok=True)
     
     for page_number, content in enumerate(pages):
@@ -82,7 +110,7 @@ def write_search_pages_to_directory(pages: list[HTMLString], portal: str) -> Non
             f.write(content)
 
 def read_search_page_from_directory(portal: str, page_number: int) -> HTMLString:
-    search_dir = OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    search_dir = SEARCH_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
     file_path = os.path.join(search_dir, f"{page_number}.html")
     
     try:
@@ -92,7 +120,7 @@ def read_search_page_from_directory(portal: str, page_number: int) -> HTMLString
         raise DownloadError(f"Page {page_number} not found for {portal}")
 
 def read_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
-    search_dir = OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    search_dir = SEARCH_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
     if not os.path.exists(search_dir):
         raise FileNotFoundError(f"No downloaded files found for {portal} at {search_dir}")
     
@@ -176,13 +204,28 @@ def parse_jobs_from_all_portals(pages_by_portal: dict[str, list[HTMLString]]) ->
     
     return jobs_by_portal
 
-if __name__ == "__main__":
-    pages_by_portal = download_all_search_pages_for_all_portals()
-    write_all_search_pages_to_directory(pages_by_portal)
+
+def main():
+    #pages_by_portal = download_all_search_pages_for_all_portals()
+    #write_all_search_pages_to_directory(pages_by_portal)
 
     pages_by_portal = read_all_search_pages_from_directory()
     jobs_by_portal = parse_jobs_from_all_portals(pages_by_portal)
     
-    with open(PARSED_JOBS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(jobs_by_portal, f, indent=2, cls=CustomJSONEncoder)
-    print(f"Saved parsed results to {PARSED_JOBS_FILE}")
+    test_job = jobs_by_portal['jobsatcity'][0]
+    test_job_url = JOB_PAGE_URL_TEMPLATE.format(relative_url=test_job.relative_url)
+    print(f"Downloading job page for {test_job_url}")
+    test_job_page = download_job_page(test_job_url)
+    write_job_page_to_directory(test_job_page, test_job.portal, test_job.job_id)
+
+
+if __name__ == "__main__":
+    from util import get_all_functions_in_module
+    import sys
+    current_module = sys.modules[__name__]
+    
+    functions = get_all_functions_in_module(current_module)
+    for function in sorted(functions):
+        if function != 'main':
+            print(function)
+
