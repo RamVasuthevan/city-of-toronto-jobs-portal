@@ -69,49 +69,67 @@ def download_search_page(url: str, page_number: int) -> HTMLString:
     except requests.RequestException as e:
         raise DownloadError(f"Failed to download page {page_number}: {str(e)}")
 
-def download_all_search_pages_for_portal(portal: str) -> None:
-    """
-    Downloads all pages from a Toronto jobs portal
-    
-    Args:
-        portal: The portal name ('jobsatcity' or 'recreation')
-    """
+def download_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
     url = BASE_URL_TEMPLATE.format(portal=portal)
-    output_dir = OUTPUT_PATH_TEMPLATE.format(portal=portal)
-    os.makedirs(output_dir, exist_ok=True)
+    all_pages = []
     
     page_number = 0
     while True:
         content = download_search_page(url, page_number)
         
         if not content:
-            print(f"Failed to get content for page {page_number} for {portal}")
-            break
+            raise DownloadError(f"Failed to get content for page {page_number} for {portal}")
             
         if content.strip().lower() == END_OF_JOBS_MARKER.lower():
             print(f"Reached end of jobs at page {page_number} for {portal}")
             break
-                
-        output_file = os.path.join(output_dir, f"{page_number}.html")
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(content)
         
+        all_pages.append(content)
         print(f"Downloaded {portal} page {page_number}")
         page_number += 1
         sleep(SLEEP_BETWEEN_REQUESTS)
-
-def parse_jobs_from_search_page(html_content: str, portal: str) -> list[Job]:
-    """
-    Parse jobs from a single search results page HTML content
     
-    Args:
-        html_content: HTML content of the search results page
-        portal: The portal name ('jobsatcity' or 'recreation')
-        
-    Returns:
-        list[Job]: List of Job models containing job information
-    """
-    soup = BeautifulSoup(html_content, 'html.parser')
+    return all_pages
+
+def write_search_pages_to_directory(pages: list[HTMLString], portal: str) -> None:
+    output_dir = OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    os.makedirs(output_dir, exist_ok=True)
+    
+    for page_number, content in enumerate(pages):
+        output_file = os.path.join(output_dir, f"{page_number}.html")
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+def read_search_page_from_directory(portal: str, page_number: int) -> HTMLString:
+    search_dir = OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    file_path = os.path.join(search_dir, f"{page_number}.html")
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return HTMLString(f.read())
+    except FileNotFoundError:
+        raise DownloadError(f"Page {page_number} not found for {portal}")
+
+def read_all_search_pages_for_portal_from_directory(portal: str) -> list[HTMLString]:
+    search_dir = OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    if not os.path.exists(search_dir):
+        raise FileNotFoundError(f"No downloaded files found for {portal} at {search_dir}")
+    
+    pages = []
+    page_number = 0
+    
+    while True:
+        try:
+            page = read_search_page_from_directory(portal, page_number)
+            pages.append(page)
+            page_number += 1
+        except DownloadError:
+            break
+    
+    return pages
+
+def parse_jobs_from_search_page(page: HTMLString, portal: str) -> list[Job]:
+    soup = BeautifulSoup(page, 'html.parser')
     jobs = []
     
     for job_tile in soup.find_all('li', class_='job-tile'):
@@ -135,56 +153,33 @@ def parse_jobs_from_search_page(html_content: str, portal: str) -> list[Job]:
     
     return jobs
 
-def parse_all_jobs_from_portal(portal: str) -> list[Job]:
-    """
-    Parse all downloaded search pages for a portal
-    
-    Args:
-        portal: The portal name ('jobsatcity' or 'recreation')
-        
-    Returns:
-        list[Job]: List of all jobs from the portal
-    """
+def parse_all_jobs_from_portal(pages: list[HTMLString], portal: str) -> list[Job]:
     jobs = []
-    search_dir = OUTPUT_PATH_TEMPLATE.format(portal=portal)
     
-    if not os.path.exists(search_dir):
-        raise FileNotFoundError(f"No downloaded files found for {portal} at {search_dir}")
-        
-    for filename in sorted(os.listdir(search_dir)):
-        if not filename.endswith('.html'):
-            continue
-            
-        file_path = os.path.join(search_dir, filename)
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            
+    for page_number, content in enumerate(pages):
         page_jobs = parse_jobs_from_search_page(content, portal)
         jobs.extend(page_jobs)
-        print(f"Parsed {len(page_jobs)} jobs from {filename}")
+        print(f"Parsed {len(page_jobs)} jobs from page {page_number}")
     
     return jobs
 
 def download_and_parse_form_all_portals():
-    """
-    Download and parse jobs from all portals, saving results to a JSON file
-    """
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     os.makedirs(SEARCH_PAGE_DOWNLOAD_DIR, exist_ok=True)
     
-    for portal in JOB_PORTAL_SLUGS:
-        print(f"Starting download for {portal}")
-        download_all_search_pages_for_portal(portal)
-        print(f"Completed download for {portal}")
-        sleep(SLEEP_BETWEEN_PORTALS)
-    
     all_jobs = {}
     for portal in JOB_PORTAL_SLUGS:
+        print(f"Starting download for {portal}")
+        pages = download_all_search_pages_for_portal(portal)
+        write_search_pages_to_directory(pages, portal)
+        
         print(f"Parsing jobs for {portal}")
-        jobs = parse_all_jobs_from_portal(portal)
+        jobs = parse_all_jobs_from_portal(pages, portal)
         jobs_dict = [job.model_dump() for job in jobs]
         all_jobs[portal] = jobs_dict
         print(f"Found {len(jobs)} jobs for {portal}")
+        
+        sleep(SLEEP_BETWEEN_PORTALS)
         
     with open(PARSED_JOBS_FILE, 'w', encoding='utf-8') as f:
         json.dump(all_jobs, f, indent=2, cls=DateEncoder)
