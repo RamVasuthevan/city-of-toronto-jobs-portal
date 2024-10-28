@@ -9,25 +9,9 @@ from typing import Optional, Union
 from sqlmodel import SQLModel, Field
 from pydantic import field_validator, field_serializer
 from typing import NewType
+from models import Job
 
-from util import DateEncoder
-
-class Job(SQLModel):
-    """SQLModel for Toronto job postings"""
-    job_id: str = Field(primary_key=True)
-    relative_url: str
-    title: str
-    job_stream: Optional[str] = None
-    position_type: str
-    posting_date: date 
-    portal: str
-
-    @field_validator('posting_date', mode='before')
-    @classmethod
-    def parse_posting_date(cls, value):
-        if isinstance(value, date):
-            return value
-        return datetime.strptime(value, '%b %d, %Y').date()
+from util import CustomJSONEncoder
 
 JOB_PORTAL_SLUGS = ['jobsatcity', 'recreation']
 BASE_URL_TEMPLATE = "https://jobs.toronto.ca/{portal}/tile-search-results/"
@@ -110,7 +94,7 @@ def read_search_page_from_directory(portal: str, page_number: int) -> HTMLString
     except FileNotFoundError:
         raise DownloadError(f"Page {page_number} not found for {portal}")
 
-def read_all_search_pages_for_portal_from_directory(portal: str) -> list[HTMLString]:
+def read_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
     search_dir = OUTPUT_PATH_TEMPLATE.format(portal=portal)
     if not os.path.exists(search_dir):
         raise FileNotFoundError(f"No downloaded files found for {portal} at {search_dir}")
@@ -163,27 +147,45 @@ def parse_all_jobs_from_portal(pages: list[HTMLString], portal: str) -> list[Job
     
     return jobs
 
-def download_and_parse_form_all_portals():
-    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-    os.makedirs(SEARCH_PAGE_DOWNLOAD_DIR, exist_ok=True)
-    
-    all_jobs = {}
+def download_all_search_pages_for_all_portals() -> dict[str, list[HTMLString]]:    
+    pages_by_portal = {}
     for portal in JOB_PORTAL_SLUGS:
         print(f"Starting download for {portal}")
         pages = download_all_search_pages_for_portal(portal)
+        pages_by_portal[portal] = pages
+        sleep(SLEEP_BETWEEN_PORTALS)
+    
+    return pages_by_portal
+
+def write_all_search_pages_to_directory(pages_by_portal: dict[str, list[HTMLString]]) -> None:
+    for portal, pages in pages_by_portal.items():
         write_search_pages_to_directory(pages, portal)
-        
+
+def read_all_search_pages_from_directory() -> dict[str, list[HTMLString]]:
+    pages_by_portal = {}
+    for portal in JOB_PORTAL_SLUGS:
+        pages = read_all_search_pages_for_portal(portal)
+        pages_by_portal[portal] = pages
+    
+    return pages_by_portal
+
+def parse_jobs_from_all_portals(pages_by_portal: dict[str, list[HTMLString]]) -> dict[str, list[Job]]:
+    jobs_by_portal = {}
+    for portal, pages in pages_by_portal.items():
         print(f"Parsing jobs for {portal}")
         jobs = parse_all_jobs_from_portal(pages, portal)
-        jobs_dict = [job.model_dump() for job in jobs]
-        all_jobs[portal] = jobs_dict
+        jobs_by_portal[portal] = jobs
         print(f"Found {len(jobs)} jobs for {portal}")
-        
-        sleep(SLEEP_BETWEEN_PORTALS)
-        
-    with open(PARSED_JOBS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(all_jobs, f, indent=2, cls=DateEncoder)
-    print(f"Saved parsed results to {PARSED_JOBS_FILE}")
+    
+    return jobs_by_portal
 
 if __name__ == "__main__":
-    download_and_parse_form_all_portals()
+    #pages_by_portal = download_all_search_pages_for_all_portals()
+    #write_all_search_pages_to_directory(pages_by_portal)
+
+    pages_by_portal = read_all_search_pages_from_directory()
+    jobs_by_portal = parse_jobs_from_all_portals(pages_by_portal)
+    
+    with open(PARSED_JOBS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(jobs_by_portal, f, indent=2, cls=CustomJSONEncoder)
+    print(f"Saved parsed results to {PARSED_JOBS_FILE}")
