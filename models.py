@@ -1,14 +1,15 @@
-import requests
-from time import sleep
-import os
-from datetime import datetime, date
-import time
-from bs4 import BeautifulSoup
 import json
-from typing import Optional, Union
-from sqlmodel import SQLModel, Field
-from pydantic import field_validator, field_serializer
-from typing import NewType
+import os
+import time
+from datetime import date, datetime
+from time import sleep
+from typing import NewType, Optional, Union
+
+import requests
+from bs4 import BeautifulSoup
+from pydantic import field_serializer, field_validator
+from sqlmodel import Field, SQLModel
+
 
 class Job(SQLModel):
     """SQLModel for Toronto job postings"""

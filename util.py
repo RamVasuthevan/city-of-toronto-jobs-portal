@@ -1,6 +1,8 @@
-from datetime import date
 import json
+from datetime import date
+
 from models import Job
+
 
 class CustomJSONEncoder(json.JSONEncoder):
     """JSON encoder that handles Job models and dates"""
