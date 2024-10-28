@@ -92,6 +92,16 @@ def download_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
     
     return all_pages
 
+def download_all_search_pages_for_all_portals() -> dict[str, list[HTMLString]]:    
+    pages_by_portal = {}
+    for portal in JOB_PORTAL_SLUGS:
+        print(f"Starting download for {portal}")
+        pages = download_all_search_pages_for_portal(portal)
+        pages_by_portal[portal] = pages
+        sleep(SLEEP_BETWEEN_PORTALS)
+    
+    return pages_by_portal
+
 def write_search_pages_for_portal_to_directory(pages: list[HTMLString], portal: str) -> None:
     output_dir = SEARCH_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
     os.makedirs(output_dir, exist_ok=True)
@@ -109,6 +119,10 @@ def write_job_pages_for_portal_to_directory(pages: list[HTMLString], portal: str
         output_file = os.path.join(output_dir, f"{page_number}.html")
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(content)
+
+def write_all_search_pages_for_all_portals_to_directory(pages_by_portal: dict[str, list[HTMLString]]) -> None:
+    for portal, pages in pages_by_portal.items():
+        write_search_pages_for_portal_to_directory(pages, portal)
 
 def read_search_page_from_directory(portal: str, page_number: int) -> HTMLString:
     search_dir = SEARCH_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
@@ -137,6 +151,14 @@ def read_all_search_pages_for_portal(portal: str) -> list[HTMLString]:
             break
     
     return pages
+
+def read_all_search_pages_for_all_portals_from_directory() -> dict[str, list[HTMLString]]:
+    pages_by_portal = {}
+    for portal in JOB_PORTAL_SLUGS:
+        pages = read_all_search_pages_for_portal(portal)
+        pages_by_portal[portal] = pages
+    
+    return pages_by_portal
 
 def parse_jobs_from_search_page(page: HTMLString, portal: str) -> list[Job]:
     soup = BeautifulSoup(page, 'html.parser')
@@ -173,28 +195,6 @@ def parse_all_jobs_from_portal(pages: list[HTMLString], portal: str) -> list[Job
     
     return jobs
 
-def download_all_search_pages_for_all_portals() -> dict[str, list[HTMLString]]:    
-    pages_by_portal = {}
-    for portal in JOB_PORTAL_SLUGS:
-        print(f"Starting download for {portal}")
-        pages = download_all_search_pages_for_portal(portal)
-        pages_by_portal[portal] = pages
-        sleep(SLEEP_BETWEEN_PORTALS)
-    
-    return pages_by_portal
-
-def write_all_search_pages_to_directory(pages_by_portal: dict[str, list[HTMLString]]) -> None:
-    for portal, pages in pages_by_portal.items():
-        write_search_pages_for_portal_to_directory(pages, portal)
-
-def read_all_search_pages_from_directory() -> dict[str, list[HTMLString]]:
-    pages_by_portal = {}
-    for portal in JOB_PORTAL_SLUGS:
-        pages = read_all_search_pages_for_portal(portal)
-        pages_by_portal[portal] = pages
-    
-    return pages_by_portal
-
 def parse_jobs_from_all_portals(pages_by_portal: dict[str, list[HTMLString]]) -> dict[str, list[Job]]:
     jobs_by_portal = {}
     for portal, pages in pages_by_portal.items():
@@ -208,9 +208,9 @@ def parse_jobs_from_all_portals(pages_by_portal: dict[str, list[HTMLString]]) ->
 
 def main():
     pages_by_portal = download_all_search_pages_for_all_portals()
-    write_all_search_pages_to_directory(pages_by_portal)
+    write_all_search_pages_for_all_portals_to_directory(pages_by_portal)
 
-    pages_by_portal = read_all_search_pages_from_directory()
+    pages_by_portal = read_all_search_pages_for_all_portals_from_directory()
     jobs_by_portal = parse_jobs_from_all_portals(pages_by_portal)
 
     test_jobs = jobs_by_portal['jobsatcity'][:3]
