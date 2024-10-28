@@ -14,3 +14,10 @@ Based on an HTML comment:
 
 It looks like the job portal is managed by Jobs2Web, which was acquired by SuccessFactors in [2011](https://www.inc.com/courtney-rubin/jobs2web-acquired-for-$110-million.html), which was in turn acquired by SAP in [2014](https://www.forrester.com/blogs/11-12-05-sap_acquires_successfactors_a_look_at_the_deal/).
 
+
+Todo:
+- [ ] Move to pyproject.toml ?
+- [ ] Add black, isort, autoflake, flake8 to pyproject.toml ?
+- [ ] Add tests
+- [ ] Add logging
+- [ ] Git scraping job posts
