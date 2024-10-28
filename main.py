@@ -29,7 +29,6 @@ PARSED_JOBS_FILE = os.path.join(DOWNLOAD_DIR, 'parsed_jobs.json')
 JOB_PAGE_URL_TEMPLATE = "https://jobs.toronto.ca/{relative_url}"
 
 class DownloadError(Exception):
-    """Raised when a page download fails"""
     pass
 
 HTMLString = NewType('HTMLString', str)
@@ -102,6 +101,15 @@ def download_search_pages_for_all_portals() -> dict[str, list[HTMLString]]:
     
     return pages_by_portal
 
+def download_job_pages_for_jobs(jobs: list[Job]) -> dict[str, HTMLString]:
+    pages = {}
+    for job in jobs:
+        print(f"Downloading page for job {job.job_id}")
+        url = JOB_PAGE_URL_TEMPLATE.format(relative_url=job.relative_url)
+        pages[job.job_id] = download_job_page(url)
+        sleep(SLEEP_BETWEEN_REQUESTS)
+    return pages
+
 def write_search_pages_for_portal_to_directory(pages: list[HTMLString], portal: str) -> None:
     output_dir = SEARCH_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
     os.makedirs(output_dir, exist_ok=True)
@@ -111,12 +119,12 @@ def write_search_pages_for_portal_to_directory(pages: list[HTMLString], portal: 
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(content)
 
-def write_job_pages_for_portal_to_directory(pages: list[HTMLString], portal: str) -> None:
+def write_job_pages_for_portal_to_directory(pages: dict[str, HTMLString], portal: str) -> None:
     output_dir = JOB_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
     os.makedirs(output_dir, exist_ok=True)
 
-    for page_number, content in enumerate(pages):
-        output_file = os.path.join(output_dir, f"{page_number}.html")
+    for job_id, content in pages.items():
+        output_file = os.path.join(output_dir, f"{job_id}.html")
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(content)
 
@@ -133,6 +141,16 @@ def read_search_page_from_directory(portal: str, page_number: int) -> HTMLString
             return HTMLString(f.read())
     except FileNotFoundError:
         raise DownloadError(f"Page {page_number} not found for {portal}")
+
+def read_job_page_from_directory(portal: str, job_id: str) -> HTMLString:
+    job_dir = JOB_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
+    file_path = os.path.join(job_dir, f"{job_id}.html")
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return HTMLString(f.read())
+    except FileNotFoundError:
+        raise DownloadError(f"Job page for ID {job_id} not found in {portal}")
 
 def read_search_pages_for_portal(portal: str) -> list[HTMLString]:
     search_dir = SEARCH_PAGE_OUTPUT_PATH_TEMPLATE.format(portal=portal)
@@ -205,15 +223,10 @@ def parse_jobs_from_search_pages_for_portals(pages_by_portal: dict[str, list[HTM
     
     return jobs_by_portal
 
-
 def read_jobs_from_json(filepath: str) -> dict[str, list[Job]]:
-    """
-    Read jobs from a JSON file and convert them to Job model instances
-    """
     with open(filepath, 'r') as f:
         jobs_data = json.load(f)
     
-    # Convert the jobs data to Job model instances
     jobs_by_portal = {
         portal: [Job(**job) for job in portal_jobs]
         for portal, portal_jobs in jobs_data.items()
@@ -221,16 +234,11 @@ def read_jobs_from_json(filepath: str) -> dict[str, list[Job]]:
     
     return jobs_by_portal
 
-
 if __name__ == "__main__":
     #jobs_by_portal = download_search_pages_and_parse_jobs_write_to_directory_for_all_portals()
 
     jobs_by_portal = read_jobs_from_json(os.path.join(DOWNLOAD_DIR, 'jobs_by_portal.json'))
-
+    
     jobs = jobs_by_portal['jobsatcity'][:3]
-    job_pages = []
-    for job in jobs:
-        print(job)
-        url = JOB_PAGE_URL_TEMPLATE.format(relative_url=job.relative_url)
-        job_pages.append(download_job_page(url))
+    job_pages = download_job_pages_for_jobs(jobs)
     write_job_pages_for_portal_to_directory(job_pages, 'jobsatcity')
