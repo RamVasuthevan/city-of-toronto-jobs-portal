@@ -8,7 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from models import Job
-from util import CustomJSONEncoder
+from util import CustomJSONEncoder, download_search_pages_and_parse_jobs_write_to_directory_for_all_portals
 
 JOB_PORTAL_SLUGS = ['jobsatcity', 'recreation']
 SEARCH_PAGE_URL_TEMPLATE = "https://jobs.toronto.ca/{portal}/tile-search-results/"
@@ -206,19 +206,31 @@ def parse_jobs_from_search_pages_for_portals(pages_by_portal: dict[str, list[HTM
     return jobs_by_portal
 
 
-def main():
-    pages_by_portal = download_search_pages_for_all_portals()
-    write_search_pages_for_portals_to_directory(pages_by_portal)
-
-    pages_by_portal = read_search_pages_for_all_portals_from_directory()
-    jobs_by_portal = parse_jobs_from_search_pages_for_portals(pages_by_portal)
-
-    test_jobs = jobs_by_portal['jobsatcity'][:3]
-    test_job_urls = [JOB_PAGE_URL_TEMPLATE.format(relative_url=job.relative_url) for job in test_jobs]
-    test_job_pages = [download_job_page(url) for url in test_job_urls]
-    write_job_pages_for_portal_to_directory(test_job_pages, 'jobsatcity')
+def read_jobs_from_json(filepath: str) -> dict[str, list[Job]]:
+    """
+    Read jobs from a JSON file and convert them to Job model instances
+    """
+    with open(filepath, 'r') as f:
+        jobs_data = json.load(f)
+    
+    # Convert the jobs data to Job model instances
+    jobs_by_portal = {
+        portal: [Job(**job) for job in portal_jobs]
+        for portal, portal_jobs in jobs_data.items()
+    }
+    
+    return jobs_by_portal
 
 
 if __name__ == "__main__":
-    main()
+    #jobs_by_portal = download_search_pages_and_parse_jobs_write_to_directory_for_all_portals()
 
+    jobs_by_portal = read_jobs_from_json(os.path.join(DOWNLOAD_DIR, 'jobs_by_portal.json'))
+
+    jobs = jobs_by_portal['jobsatcity'][:3]
+    job_pages = []
+    for job in jobs:
+        print(job)
+        url = JOB_PAGE_URL_TEMPLATE.format(relative_url=job.relative_url)
+        job_pages.append(download_job_page(url))
+    write_job_pages_for_portal_to_directory(job_pages, 'jobsatcity')
