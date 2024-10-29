@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, List
 
 from core.enums import Portal
-from core.models import SearchResult
 from core.exception import DirectoryLoadError
+from core.models import SearchResult
 
 
 class SearchResultLoader(ABC):
@@ -13,19 +13,16 @@ class SearchResultLoader(ABC):
     @abstractmethod
     def save_search_result(portal: Portal, result: SearchResult) -> None:
         """Save single search result"""
-        pass
 
     @staticmethod
     @abstractmethod
     def save_search_results_for_portal(portal: Portal, results: List[SearchResult]) -> None:
         """Save search results for single portal"""
-        pass
 
     @staticmethod
     @abstractmethod
     def save_search_results_for_portals(results_by_portal: Dict[Portal, List[SearchResult]]) -> None:
         """Save search results for multiple portals"""
-        pass
 
 
 class JSONSearchResultLoader(SearchResultLoader):

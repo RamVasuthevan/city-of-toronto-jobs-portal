@@ -1,12 +1,13 @@
+import os
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, List
-import os
+
 import requests
 
-from core.types import HTMLString
 from core.enums import Portal
 from core.exception import DownloadError
+from core.types import HTMLString
 
 
 class SearchPageProvider(ABC):
@@ -14,19 +15,16 @@ class SearchPageProvider(ABC):
     @abstractmethod
     def search_page(portal: Portal, page_number: int) -> HTMLString:
         """Fetch single search results page"""
-        pass
 
     @staticmethod
     @abstractmethod
     def search_pages_for_portal(portal: Portal) -> List[HTMLString]:
         """Fetch all search pages for a portal"""
-        pass
 
     @staticmethod
     @abstractmethod
     def search_pages_for_portals(portals: List[Portal] = None) -> Dict[Portal, List[HTMLString]]:
         """Fetch all search pages for multiple portals"""
-        pass
 
 
 class DownloadSearchPageProvider(SearchPageProvider):

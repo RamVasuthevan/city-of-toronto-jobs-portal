@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List
+
 from bs4 import BeautifulSoup
 
-from core.types import HTMLString
 from core.enums import Portal
-from core.models import SearchResult
 from core.exception import ParseError
+from core.models import SearchResult
+from core.types import HTMLString
 
 
 class SearchPageParser(ABC):
@@ -13,13 +14,11 @@ class SearchPageParser(ABC):
     @abstractmethod
     def parse_search_page(page: HTMLString, portal: Portal) -> List[SearchResult]:
         """Parse search results from single search page"""
-        pass
 
     @staticmethod
     @abstractmethod
     def parse_search_pages_for_portal(pages: List[HTMLString], portal: Portal) -> List[SearchResult]:
         """Parse search results from multiple search pages"""
-        pass
 
     @staticmethod
     @abstractmethod
@@ -27,7 +26,6 @@ class SearchPageParser(ABC):
         pages_by_portal: Dict[Portal, List[HTMLString]]
     ) -> Dict[Portal, List[SearchResult]]:
         """Parse search results from multiple portals"""
-        pass
 
 
 class DefaultSearchPageParser(SearchPageParser):

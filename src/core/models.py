@@ -1,6 +1,7 @@
 from datetime import date
-from sqlmodel import Field, SQLModel
+
 from pydantic import field_validator
+from sqlmodel import Field, SQLModel
 
 
 class SearchResult(SQLModel):

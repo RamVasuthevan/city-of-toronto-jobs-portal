@@ -2,9 +2,9 @@ import os
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
-from core.types import HTMLString
 from core.enums import Portal
 from core.exception import DirectoryStoreError
+from core.types import HTMLString
 
 
 class SearchPageStore(ABC):
@@ -12,19 +12,16 @@ class SearchPageStore(ABC):
     @abstractmethod
     def store_search_page(portal: Portal, page_number: int, content: HTMLString) -> None:
         """Store single search page"""
-        pass
 
     @staticmethod
     @abstractmethod
     def store_search_pages_for_portal(portal: Portal, pages: List[HTMLString]) -> None:
         """Store multiple search pages"""
-        pass
 
     @staticmethod
     @abstractmethod
     def store_search_pages_for_portals(pages_by_portal: Dict[Portal, List[HTMLString]]) -> None:
         """Store search pages for multiple portals"""
-        pass
 
 
 class DirectorySearchPageStore(SearchPageStore):

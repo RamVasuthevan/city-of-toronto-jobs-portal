@@ -1,8 +1,7 @@
-from core.enums import Portal
-from search_pages.extract.provider import SearchPageProvider, DownloadSearchPageProvider, DirectorySearchPageProvider
+from search_pages.extract.provider import DirectorySearchPageProvider, DownloadSearchPageProvider, SearchPageProvider
 from search_pages.extract.store import DirectorySearchPageStore
-from search_pages.transform.parser import DefaultSearchPageParser
 from search_pages.load.loader import JSONSearchResultLoader
+from search_pages.transform.parser import DefaultSearchPageParser
 
 
 def process_search_pages_workflow(search_page_provider: SearchPageProvider) -> None:
