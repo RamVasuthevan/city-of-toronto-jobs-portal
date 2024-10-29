@@ -8,7 +8,7 @@ class Portal(Enum):
     @property
     def search_page_url(self) -> str:
         return f"https://jobs.toronto.ca/{self.value}/tile-search-results/"
-    
-    @property 
+
+    @property
     def job_page_url_template(self) -> str:
         return f"https://jobs.toronto.ca/{self.value}/{{relative_url}}"
