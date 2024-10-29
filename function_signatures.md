@@ -5,7 +5,7 @@
 ```python
 from typing import NewType, Dict, List
 from enum import Enum
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethodto
 
 HTMLString = NewType('HTMLString', str)
 

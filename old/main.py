@@ -7,7 +7,7 @@ from typing import NewType
 import requests
 from bs4 import BeautifulSoup
 
-from models import Job
+from src.models import Job
 from util import CustomJSONEncoder, download_search_pages_and_parse_jobs_write_to_directory_for_all_portals
 
 JOB_PORTAL_SLUGS = ['jobsatcity', 'recreation']
