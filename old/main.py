@@ -243,7 +243,6 @@ def read_job_pages_from_directory(portal: str) -> dict[str, HTMLString]:
             job_pages[job_id] = HTMLString(f.read())
     return job_pages
 
-
 def parse_job_details_from_job_page(page: HTMLString) -> dict[str, str]:
    """
    Extract basic job details from before Job Summary section.
