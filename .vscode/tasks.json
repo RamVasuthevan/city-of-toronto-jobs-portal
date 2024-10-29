@@ -2,21 +2,14 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "run_black",
+            "label": "run_all_formatters",
             "type": "shell",
-            "command": "black . --line-length 120",
+            "command": "autoflake . && isort . && black .",
             "problemMatcher": [],
             "group": {
                 "kind": "build",
                 "isDefault": true
             }
-        },
-        {
-            "label": "run_isort",
-            "type": "shell",
-            "command": "isort . --profile black",
-            "problemMatcher": [],
-            "group": "build"
         }
     ]
 }
